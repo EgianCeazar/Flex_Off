@@ -229,93 +229,253 @@ function angle3d(a, b, c) {
 const candidateScore = checks => checks.filter(Boolean).length / (checks.length || 1);
 
 export function classifyPose(p, w) {
-  if (!p || !w) return { key: null, confidence: 0, margin: 0, yaw: null, facing: null };
-  const required = [0, 11, 12, 13, 14, 15, 16, 23, 24];
-  if (required.some(index => !w[index])) return { key: null, confidence: 0, margin: 0, yaw: null, facing: null };
+  if (!p || !w) {
+    return { key: null, confidence: 0, margin: 0, yaw: null, facing: null };
+  }
 
-  const lS = w[11], rS = w[12], lE = w[13], rE = w[14], lW = w[15], rW = w[16];
+  const required = [0, 11, 12, 13, 14, 15, 16, 23, 24];
+
+  if (required.some(index => !w[index])) {
+    return { key: null, confidence: 0, margin: 0, yaw: null, facing: null };
+  }
+
+  const lS = w[11];
+  const rS = w[12];
+  const lE = w[13];
+  const rE = w[14];
+  const lW = w[15];
+  const rW = w[16];
+
   const f = normalizedFeatures(p);
-  const yaw = Math.atan2(Math.abs(lS.z - rS.z), Math.max(0.001, Math.abs(lS.x - rS.x))) * 180 / Math.PI;
+
+  const yaw =
+    Math.atan2(
+      Math.abs(lS.z - rS.z),
+      Math.max(0.001, Math.abs(lS.x - rS.x))
+    ) * 180 / Math.PI;
+
   const shoulderDepth = Math.abs(lS.z - rS.z);
-  const faceFront = (p[0]?.visibility ?? 0) > 0.50 && p[0].z < ((w[11].z + w[12].z) / 2) + 0.10;
+
+  const noseVisibility = p[0]?.visibility ?? 0;
+
+  // A clearly visible nose is a stronger front-facing signal.
+  // When the face is hidden, treat the pose as rear-facing only
+  // when the shoulder depth also supports that conclusion.
+  const faceFront =
+    noseVisibility >= 0.55 &&
+    p[0].z < ((lS.z + rS.z) / 2) + 0.10;
+
   const facing = faceFront ? 'front' : 'back';
 
-  if (yaw >= 30 && yaw < 45) return { key: null, confidence: 0, margin: 0, yaw, facing };
+  // 30–45° is intentionally treated as an uncertain transition
+  // instead of forcing it into front or side.
+  if (yaw >= 30 && yaw < 45) {
+    return {
+      key: null,
+      confidence: 0,
+      margin: 0,
+      yaw,
+      facing,
+    };
+  }
 
   const candidates = [];
+
   const lAngle = angle3d(lS, lE, lW);
   const rAngle = angle3d(rS, rE, rW);
 
+  /*
+   * FRONT / BACK POSES
+   */
   if (yaw < 30) {
-    const doubleBiceps = candidateScore([
-      Math.abs(lE.y - rE.y) < 0.22,
-      lAngle > 35 && lAngle < 125,
-      rAngle > 35 && rAngle < 125,
-      lW.y < lE.y - 0.04,
-      rW.y < rE.y - 0.04,
-      f.elbowSpread > 0.80,
-    ]);
-    candidates.push({ key: facing === 'front' ? 'front' : 'back', confidence: doubleBiceps });
+    /*
+     * Double biceps:
+     * - elbows raised
+     * - wrists clearly above elbows
+     * - both arms bent
+     * - elbows reasonably separated
+     *
+     * These requirements intentionally conflict with a lat spread.
+     */
+    const doubleBicepsScore = (
+      (Math.abs(lE.y - rE.y) < 0.22 ? 1 : 0) * 0.15 +
+      (lAngle > 35 && lAngle < 125 ? 1 : 0) * 0.20 +
+      (rAngle > 35 && rAngle < 125 ? 1 : 0) * 0.20 +
+      (lW.y < lE.y - 0.04 ? 1 : 0) * 0.15 +
+      (rW.y < rE.y - 0.04 ? 1 : 0) * 0.15 +
+      (f.elbowSpread > 0.80 ? 1 : 0) * 0.15
+    );
+
+    candidates.push({
+      key: facing === 'front' ? 'front' : 'back',
+      confidence: doubleBicepsScore,
+    });
 
     if (facing === 'front') {
-      const lat = candidateScore([
-        f.elbowsWide,
-        f.elbowLevel > 75,
-        f.wristsNearWaist >= 50,
-        f.wristDistance > 0.75,
-        f.wristsBelowShoulders,
-        !f.handsNearCenter,
-      ]);
-      const most = candidateScore([
-        f.handsNearCenter,
-        f.elbowsCompact,
-        f.wristDistance < 0.75,
-        f.wristsBelowShoulders,
-        !f.armsOpen,
-        f.elbowSpread < 1.25,
-      ]);
-      const abs = candidateScore([
-        lW.y < lS.y && rW.y < rS.y,
-        lAngle < 145 && rAngle < 145,
-        Math.abs(lW.y - rW.y) < 0.22,
-        Math.abs(lW.x - rW.x) < 0.85,
-      ]);
-      candidates.push({ key: 'frontLat', confidence: lat });
-      candidates.push({ key: 'most', confidence: most });
-      candidates.push({ key: 'absThigh', confidence: abs });
+      /*
+       * FRONT LAT SPREAD
+       *
+       * This is deliberately stricter than before.
+       * Both wrists should be down near the waist, elbows should
+       * be wide, hands should be separated, and the arms should
+       * clearly be open.
+       */
+      const frontLatScore = (
+        (f.elbowSpread > 1.10 ? 1 : 0) * 0.20 +
+        (f.elbowLevel > 65 ? 1 : 0) * 0.10 +
+        (f.wristsNearWaist === 100 ? 1 : 0) * 0.25 +
+        (f.wristDistance > 0.75 ? 1 : 0) * 0.15 +
+        (f.wristsBelowShoulders ? 1 : 0) * 0.10 +
+        (f.armsOpen ? 1 : 0) * 0.10 +
+        (!f.handsNearCenter ? 1 : 0) * 0.10
+      );
+
+      /*
+       * MOST MUSCULAR
+       *
+       * Compact hands + compact elbows.
+       * This is intentionally the opposite of front lat.
+       */
+      const mostScore = (
+        (f.handsNearCenter ? 1 : 0) * 0.25 +
+        (f.wristDistance < 0.75 ? 1 : 0) * 0.20 +
+        (f.elbowSpread < 1.20 ? 1 : 0) * 0.20 +
+        (!f.armsOpen ? 1 : 0) * 0.15 +
+        (f.wristsBelowShoulders ? 1 : 0) * 0.10 +
+        (lAngle < 135 || rAngle < 135 ? 1 : 0) * 0.10
+      );
+
+      /*
+       * ABS & THIGH
+       *
+       * Hands should be substantially higher than the lat/most
+       * positions. This separates it from front lat.
+       */
+      const absScore = (
+        (lW.y < lS.y && rW.y < rS.y ? 1 : 0) * 0.35 +
+        (lAngle < 145 && rAngle < 145 ? 1 : 0) * 0.20 +
+        (Math.abs(lW.y - rW.y) < 0.22 ? 1 : 0) * 0.15 +
+        (Math.abs(lW.x - rW.x) < 0.85 ? 1 : 0) * 0.15 +
+        (f.elbowLevel > 45 ? 1 : 0) * 0.15
+      );
+
+      candidates.push({
+        key: 'frontLat',
+        confidence: frontLatScore,
+      });
+
+      candidates.push({
+        key: 'most',
+        confidence: mostScore,
+      });
+
+      candidates.push({
+        key: 'absThigh',
+        confidence: absScore,
+      });
     } else {
-      const rearLat = candidateScore([
-        f.elbowsWide,
-        f.elbowLevel > 75,
-        f.wristsNearWaist >= 50,
-        f.wristDistance > 0.75,
-        f.wristsBelowShoulders,
-      ]);
-      candidates.push({ key: 'rearLat', confidence: rearLat });
+      /*
+       * REAR LAT SPREAD
+       *
+       * Same structural requirements as front lat, but only
+       * considered when the classifier believes the person is
+       * facing away.
+       */
+      const rearLatScore = (
+        (f.elbowSpread > 1.10 ? 1 : 0) * 0.20 +
+        (f.elbowLevel > 65 ? 1 : 0) * 0.10 +
+        (f.wristsNearWaist === 100 ? 1 : 0) * 0.25 +
+        (f.wristDistance > 0.75 ? 1 : 0) * 0.15 +
+        (f.wristsBelowShoulders ? 1 : 0) * 0.10 +
+        (f.armsOpen ? 1 : 0) * 0.10 +
+        (!f.handsNearCenter ? 1 : 0) * 0.10
+      );
+
+      candidates.push({
+        key: 'rearLat',
+        confidence: rearLatScore,
+      });
     }
-  } else if (yaw >= 45) {
-    const wristNearChest = [lW, rW].filter(wrist => Math.hypot(wrist.x - f.shoulderMid.x, wrist.y - (f.shoulderMid.y + 0.15)) < 0.30).length;
+  }
+
+  /*
+   * SIDE POSES
+   */
+  else if (yaw >= 45) {
+    const wristNearChest = [lW, rW].filter(wrist =>
+      Math.hypot(
+        wrist.x - f.shoulderMid.x,
+        wrist.y - (f.shoulderMid.y + 0.15)
+      ) < 0.30
+    ).length;
+
+    /*
+     * SIDE CHEST
+     * One or both hands near the chest plus a clear side rotation.
+     */
+    const sideChestScore = (
+      (shoulderDepth > 0.025 ? 1 : 0) * 0.35 +
+      (Math.min(lAngle, rAngle) < 130 ? 1 : 0) * 0.25 +
+      (wristNearChest >= 1 ? 1 : 0) * 0.25 +
+      (f.elbowSpread < 1.25 ? 1 : 0) * 0.15
+    );
+
+    /*
+     * SIDE TRICEPS
+     * One arm should be substantially straighter than the other.
+     */
+    const sideTricepsScore = (
+      (shoulderDepth > 0.025 ? 1 : 0) * 0.30 +
+      (Math.max(lAngle, rAngle) > 145 ? 1 : 0) * 0.30 +
+      (Math.min(lAngle, rAngle) < 135 ? 1 : 0) * 0.25 +
+      (Math.abs(lAngle - rAngle) > 25 ? 1 : 0) * 0.15
+    );
+
     candidates.push({
       key: 'side',
-      confidence: candidateScore([shoulderDepth > 0.025, Math.min(lAngle, rAngle) < 130, wristNearChest >= 1]),
+      confidence: sideChestScore,
     });
+
     candidates.push({
       key: 'sideTriceps',
-      confidence: candidateScore([shoulderDepth > 0.025, Math.max(lAngle, rAngle) > 145, Math.min(lAngle, rAngle) < 145]),
+      confidence: sideTricepsScore,
     });
   }
 
   candidates.sort((a, b) => b.confidence - a.confidence);
+
   const best = candidates[0];
   const second = candidates[1];
-  const margin = best ? best.confidence - (second?.confidence ?? 0) : 0;
 
-  // Freestyle refuses to guess when confidence is weak or two poses are too close.
-  if (!best || best.confidence < 0.80 || margin < 0.12) {
-    return { key: null, confidence: best?.confidence ?? 0, margin, yaw, facing };
+  const margin = best
+    ? best.confidence - (second?.confidence ?? 0)
+    : 0;
+
+  /*
+   * Do not guess when:
+   * - the winning pose is weak
+   * - another pose is nearly as likely
+   *
+   * This is important because previously the classifier could
+   * confidently call a vague pose "front lat spread".
+   */
+  if (!best || best.confidence < 0.72 || margin < 0.10) {
+    return {
+      key: null,
+      confidence: best?.confidence ?? 0,
+      margin,
+      yaw,
+      facing,
+    };
   }
 
-  return { key: best.key, confidence: best.confidence, margin, yaw, facing };
+  return {
+    key: best.key,
+    confidence: best.confidence,
+    margin,
+    yaw,
+    facing,
+  };
 }
 
 export function buildLogEntry({ samples, totalFrames, pose, poseKey, mode, holdSeconds }) {
