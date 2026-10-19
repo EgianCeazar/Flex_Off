@@ -621,12 +621,6 @@ export default function PoseBattleCam() {
         </>}
       </div>}
 
-      {(activeSection === 'studio' || activeSection === 'battle') && <div className="rubric-panel panel">
-        <div className="rubric-title"><div><span className="eyebrow">TRANSPARENT SCORING</span><h2>How your score works</h2></div><span className="rubric-tag">100 points</span></div>
-        <div className="rubric-grid"><div><strong>35%</strong><span>Physique presentation proxy</span></div><div><strong>30%</strong><span>Pose execution</span></div><div><strong>20%</strong><span>Symmetry</span></div><div><strong>15%</strong><span>Posture and control</span></div></div>
-        <p className="rubric-note">Confidence reflects landmark visibility. The physique category uses pose geometry and visibility only—it does not measure actual muscle size or definition.</p>
-      </div>}
-
       {(activeSection === 'studio' || activeSection === 'battle') && (mode === 'online' ? <section className="online-battle-stage">
         <div className="online-topbar">
           <div>
