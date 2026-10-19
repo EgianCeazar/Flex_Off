@@ -632,7 +632,7 @@ export default function PoseBattleCam() {
           <div>
             <span className="eyebrow">LIVE HEAD-TO-HEAD</span>
             <h2>FlexOff Arena</h2>
-            <p>{online.joinedRoom ? (online.peerPresent ? 'Opponent connected. Get your camera in frame.' : 'Waiting for your opponent to join…') : 'Create a room or enter a friend's code to connect.'}</p>
+            <p>{online.joinedRoom ? (online.peerPresent ? 'Opponent connected. Get your camera in frame.' : 'Waiting for your opponent to join…') : "Create a room or enter a friend's code to connect."}</p>
           </div>
           <div className="online-connection-pill"><span className={`connection-dot ${online.peerPresent ? 'connected' : ''}`} />{online.peerPresent ? (online.videoState === 'connected' ? 'VIDEO CONNECTED' : 'CONNECTING VIDEO') : 'WAITING FOR OPPONENT'}</div>
         </div>
