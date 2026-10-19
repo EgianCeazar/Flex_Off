@@ -44,7 +44,17 @@ function scoreAround(value, target, tolerance = 45) {
   );
 }
 
-/* ---------------------------- normalized features ---------------------------- */
+function rangeScore(value, min, max, soft = 20) {
+  if (value >= min && value <= max) {
+    return 100;
+  }
+
+  if (value < min) {
+    return clamp(100 - ((min - value) / soft) * 100);
+  }
+
+  return clamp(100 - ((value - max) / soft) * 100);
+}
 
 function normalizedFeatures(p) {
   const shoulderWidth = Math.max(
@@ -90,14 +100,12 @@ function normalizedFeatures(p) {
 
   const elbowLevel = clamp(
     100 -
-      (Math.abs(p[13].y - p[14].y) / torsoHeight) *
-        250
+      (Math.abs(p[13].y - p[14].y) / torsoHeight) * 250
   );
 
   const wristLevel = clamp(
     100 -
-      (Math.abs(p[15].y - p[16].y) / torsoHeight) *
-        250
+      (Math.abs(p[15].y - p[16].y) / torsoHeight) * 250
   );
 
   const leftWaist =
@@ -119,14 +127,11 @@ function normalizedFeatures(p) {
     p[15].y < p[13].y &&
     p[16].y < p[14].y;
 
-  const handsNearCenter =
-    wristDistance < 0.75;
+  const handsNearCenter = wristDistance < 0.75;
 
-  const elbowsWide =
-    elbowSpread > 1.10;
+  const elbowsWide = elbowSpread > 1.10;
 
-  const elbowsCompact =
-    elbowSpread < 1.15;
+  const elbowsCompact = elbowSpread < 1.15;
 
   const armsOpen =
     elbowSpread > 1.10 &&
@@ -158,10 +163,8 @@ function normalizedFeatures(p) {
     );
 
   const shoulderDepthRatio =
-    Math.abs(
-      (p[11].z ?? 0) -
-        (p[12].z ?? 0)
-    ) / shoulderWidth;
+    Math.abs((p[11].z ?? 0) - (p[12].z ?? 0)) /
+    shoulderWidth;
 
   return {
     shoulderWidth,
@@ -178,8 +181,8 @@ function normalizedFeatures(p) {
 
     elbowLevel,
     wristLevel,
-
     wristsNearWaist,
+
     wristsBelowShoulders,
     wristsAboveElbows,
 
@@ -194,235 +197,120 @@ function normalizedFeatures(p) {
   };
 }
 
-/* ---------------------------- pose scoring ---------------------------- */
+/* ---------------------------- selected-pose scoring ---------------------------- */
 
 function scorePoseMatch(f, poseKey) {
-
-  /* ---------------- Rear Lat Spread ---------------- */
-
-  if (poseKey === 'rearLat') {
-    return clamp(
-      scoreAround(
-        f.elbowSpread,
-        1.35,
-        0.55
-      ) * 0.24 +
-
-      f.elbowLevel * 0.12 +
-
-      f.wristsNearWaist * 0.24 +
-
-      (f.wristDistance > 0.70 ? 100 : 25) *
-        0.14 +
-
-      (f.wristsBelowShoulders ? 100 : 20) *
-        0.12 +
-
-      (f.armsOpen ? 100 : 20) *
-        0.14
-    );
-  }
-
-  /* ---------------- Most Muscular ---------------- */
-
-  if (poseKey === 'most') {
-    const compactHands = clamp(
-      100 -
-        Math.max(
-          0,
-          f.wristDistance - 0.45
-        ) *
-          180
-    );
-
-    const compactElbows = clamp(
-      100 -
-        Math.max(
-          0,
-          f.elbowSpread - 0.85
-        ) *
-          130
-    );
-
-    return clamp(
-      compactHands * 0.30 +
-      compactElbows * 0.25 +
-
-      (f.elbowsCompact ? 100 : 30) *
-        0.20 +
-
-      (f.wristsBelowShoulders ? 100 : 30) *
-        0.15 +
-
-      (f.armsOpen ? 20 : 90) *
-        0.10
-    );
-  }
-
-  /* ---------------- Front Double Biceps ---------------- */
-
   if (poseKey === 'front') {
     return clamp(
-      scoreAround(
-        f.leftElbowAngle,
-        90,
-        55
-      ) * 0.22 +
-
-      scoreAround(
-        f.rightElbowAngle,
-        90,
-        55
-      ) * 0.22 +
-
+      scoreAround(f.leftElbowAngle, 90, 60) * 0.22 +
+      scoreAround(f.rightElbowAngle, 90, 60) * 0.22 +
       f.elbowLevel * 0.18 +
-
-      (f.wristsAboveElbows ? 100 : 20) *
-        0.20 +
-
-      clamp(f.elbowSpread * 65) *
-        0.12 +
-
-      (f.wristDistance > 0.70 ? 100 : 30) *
-        0.06
+      (f.wristsAboveElbows ? 100 : 20) * 0.18 +
+      clamp(f.elbowSpread * 65) * 0.12 +
+      (f.wristDistance > 0.70 ? 100 : 30) * 0.08
     );
   }
-
-  /* ---------------- Back Double Biceps ---------------- */
 
   if (poseKey === 'back') {
     return clamp(
-      scoreAround(
-        f.leftElbowAngle,
-        90,
-        55
-      ) * 0.22 +
-
-      scoreAround(
-        f.rightElbowAngle,
-        90,
-        55
-      ) * 0.22 +
-
+      scoreAround(f.leftElbowAngle, 90, 60) * 0.22 +
+      scoreAround(f.rightElbowAngle, 90, 60) * 0.22 +
       f.elbowLevel * 0.18 +
-
-      (f.wristsAboveElbows ? 100 : 20) *
-        0.20 +
-
-      clamp(f.elbowSpread * 65) *
-        0.12 +
-
-      (f.wristDistance > 0.70 ? 100 : 30) *
-        0.06
+      (f.wristsAboveElbows ? 100 : 20) * 0.18 +
+      clamp(f.elbowSpread * 65) * 0.12 +
+      (f.wristDistance > 0.70 ? 100 : 30) * 0.08
     );
   }
 
-  /* ---------------- Abs & Thigh ---------------- */
+  if (poseKey === 'most') {
+    return clamp(
+      clamp(
+        100 - Math.max(0, f.wristDistance - 0.45) * 180
+      ) * 0.30 +
+      clamp(
+        100 - Math.max(0, f.elbowSpread - 0.85) * 130
+      ) * 0.25 +
+      (f.elbowsCompact ? 100 : 30) * 0.18 +
+      (f.wristsBelowShoulders ? 100 : 30) * 0.15 +
+      (f.armsOpen ? 20 : 90) * 0.12
+    );
+  }
 
   if (poseKey === 'absThigh') {
     return clamp(
-      (f.wristsAboveElbows ? 100 : 20) *
-        0.25 +
-
-      (f.elbowLevel > 45 ? 100 : 25) *
-        0.18 +
-
-      scoreAround(
-        f.leftElbowAngle,
-        100,
-        65
-      ) * 0.18 +
-
-      scoreAround(
-        f.rightElbowAngle,
-        100,
-        65
-      ) * 0.18 +
-
-      (f.wristDistance < 0.90 ? 100 : 35) *
-        0.11 +
-
-      f.wristLevel * 0.10
+      (f.wristsAboveElbows ? 100 : 20) * 0.24 +
+      (f.elbowLevel > 45 ? 100 : 25) * 0.16 +
+      scoreAround(f.leftElbowAngle, 100, 65) * 0.18 +
+      scoreAround(f.rightElbowAngle, 100, 65) * 0.18 +
+      (f.wristDistance < 0.95 ? 100 : 35) * 0.12 +
+      f.wristLevel * 0.12
     );
   }
 
-  /* ---------------- Side Chest ---------------- */
+  if (poseKey === 'rearLat') {
+    return clamp(
+      scoreAround(f.elbowSpread, 1.35, 0.65) * 0.22 +
+      f.elbowLevel * 0.14 +
+      f.wristsNearWaist * 0.22 +
+      (f.wristDistance > 0.70 ? 100 : 25) * 0.14 +
+      (f.wristsBelowShoulders ? 100 : 20) * 0.14 +
+      (f.armsOpen ? 100 : 20) * 0.14
+    );
+  }
 
   if (poseKey === 'side') {
     const sideRotation = clamp(
-      f.shoulderDepthRatio * 220
+      f.shoulderDepthRatio * 260
     );
-
-    const chestHand =
-      f.wristDistance < 1.00
-        ? 100
-        : 35;
 
     return clamp(
       sideRotation * 0.30 +
-
       scoreAround(
-        f.leftElbowAngle,
-        90,
+        Math.min(
+          f.leftElbowAngle,
+          f.rightElbowAngle
+        ),
+        95,
         70
       ) * 0.20 +
-
-      scoreAround(
-        f.rightElbowAngle,
-        90,
-        70
-      ) * 0.20 +
-
-      chestHand * 0.15 +
-
-      (f.elbowSpread < 1.30 ? 100 : 30) *
+      (f.wristDistance < 1.05 ? 100 : 35) * 0.18 +
+      (f.elbowSpread < 1.35 ? 100 : 30) * 0.17 +
+      (Math.abs(
+        f.leftElbowAngle -
+          f.rightElbowAngle
+      ) < 60
+        ? 100
+        : 30) *
         0.15
     );
   }
 
-  /* ---------------- Side Triceps ---------------- */
-
   if (poseKey === 'sideTriceps') {
     const sideRotation = clamp(
-      f.shoulderDepthRatio * 220
+      f.shoulderDepthRatio * 260
     );
 
-    const straightArm =
-      Math.max(
-        f.leftElbowAngle,
-        f.rightElbowAngle
-      );
+    const straightArm = Math.max(
+      f.leftElbowAngle,
+      f.rightElbowAngle
+    );
 
-    const bentArm =
-      Math.min(
-        f.leftElbowAngle,
-        f.rightElbowAngle
-      );
+    const bentArm = Math.min(
+      f.leftElbowAngle,
+      f.rightElbowAngle
+    );
 
     return clamp(
       sideRotation * 0.25 +
-
-      scoreAround(
-        straightArm,
-        155,
-        35
-      ) * 0.30 +
-
-      scoreAround(
-        bentArm,
-        90,
-        60
-      ) * 0.20 +
-
-      (
-        Math.abs(
-          f.leftElbowAngle -
-            f.rightElbowAngle
-        ) > 25
-          ? 100
-          : 30
-      ) * 0.15 +
-
+      scoreAround(straightArm, 155, 45) * 0.28 +
+      scoreAround(bentArm, 95, 65) * 0.20 +
+      (Math.abs(
+        f.leftElbowAngle -
+          f.rightElbowAngle
+      ) > 25
+        ? 100
+        : 30) *
+        0.17 +
       f.wristLevel * 0.10
     );
   }
@@ -430,10 +318,10 @@ function scorePoseMatch(f, poseKey) {
   return 0;
 }
 
-/* ---------------------------- frame scoring ---------------------------- */
-
 export function scoreFrame(p, pose) {
-  if (!p || !pose) return null;
+  if (!p || !pose) {
+    return null;
+  }
 
   const required = [
     11,
@@ -446,11 +334,8 @@ export function scoreFrame(p, pose) {
     24,
   ];
 
-  const confidence = Math.round(
-    visibilityScore(
-      p,
-      required
-    )
+  const confidence = round(
+    visibilityScore(p, required)
   );
 
   if (
@@ -462,44 +347,37 @@ export function scoreFrame(p, pose) {
 
   const f = normalizedFeatures(p);
 
-  const target =
-    Number.isFinite(pose.elbowTarget)
-      ? pose.elbowTarget
-      : 90;
+  const target = Number.isFinite(pose.elbowTarget)
+    ? pose.elbowTarget
+    : 90;
 
   const leftForm = scoreAround(
     f.leftElbowAngle,
     target,
-    55
+    60
   );
 
   const rightForm = scoreAround(
     f.rightElbowAngle,
     target,
-    55
+    60
   );
 
-  const elbowHeightError =
-    Math.abs(
-      (
-        f.shoulderMid.y -
-        (p[13].y + p[14].y) / 2
-      ) -
+  const elbowHeightError = Math.abs(
+    (
+      f.shoulderMid.y -
+      (p[13].y + p[14].y) / 2
+    ) -
       (pose.elbowLiftTarget ?? 0.02)
-    );
+  );
 
   const elevation = clamp(
-    100 -
-      elbowHeightError * 350
+    100 - elbowHeightError * 350
   );
 
   const poseExecution = clamp(
-    (
-      (leftForm + rightForm) / 2
-    ) *
-      0.65 +
-
-    elevation * 0.35
+    ((leftForm + rightForm) / 2) * 0.65 +
+      elevation * 0.35
   );
 
   const symmetry = clamp(
@@ -513,7 +391,7 @@ export function scoreFrame(p, pose) {
 
   const posture = clamp(
     (
-      (100 - f.shoulderTilt * 2) +
+      100 - f.shoulderTilt * 2 +
       (100 - f.torsoTilt * 2)
     ) / 2
   );
@@ -522,11 +400,6 @@ export function scoreFrame(p, pose) {
     f,
     pose.key || ''
   );
-
-  /*
-   * Physique is only a presentation proxy.
-   * It does not estimate actual muscle size or definition.
-   */
 
   let physique =
     poseMatch * 0.45 +
@@ -538,57 +411,38 @@ export function scoreFrame(p, pose) {
     pose.key === 'back'
   ) {
     physique = clamp(
-      clamp(f.elbowSpread * 70) *
-        0.30 +
-
+      clamp(f.elbowSpread * 70) * 0.30 +
       poseMatch * 0.35 +
-
       confidence * 0.20 +
-
       poseExecution * 0.15
     );
-
   } else if (pose.key === 'rearLat') {
-
     physique = clamp(
-      clamp(f.elbowSpread * 65) *
-        0.25 +
-
+      clamp(f.elbowSpread * 65) * 0.25 +
       f.wristsNearWaist * 0.20 +
-
       poseMatch * 0.30 +
-
       confidence * 0.25
     );
-
   } else if (pose.key === 'most') {
-
     physique = clamp(
       clamp(
-        100 -
-          f.wristDistance * 35
-      ) * 0.25 +
-
+        100 - f.wristDistance * 35
+      ) *
+        0.25 +
       poseMatch * 0.35 +
-
       poseExecution * 0.20 +
-
       confidence * 0.20
     );
-
   } else if (pose.key === 'absThigh') {
-
     physique = clamp(
       poseMatch * 0.40 +
       poseExecution * 0.30 +
       confidence * 0.30
     );
-
   } else if (
     pose.key === 'side' ||
     pose.key === 'sideTriceps'
   ) {
-
     physique = clamp(
       poseMatch * 0.40 +
       poseExecution * 0.35 +
@@ -596,76 +450,43 @@ export function scoreFrame(p, pose) {
     );
   }
 
-  /*
-   * Final rubric:
-   * 35% physique presentation proxy
-   * 30% pose execution
-   * 20% symmetry
-   * 15% posture
-   */
-
   const rawTotal =
     physique * 0.35 +
     poseExecution * 0.30 +
     symmetry * 0.20 +
     posture * 0.15;
 
-  /*
-   * Wrong-pose protection.
-   * A technically clean body position should not receive
-   * a high score when it does not resemble the selected pose.
-   */
-
   const poseGate =
     poseMatch >= 80
       ? 1
       : poseMatch >= 70
-        ? 0.92
+        ? 0.94
         : poseMatch >= 60
-          ? 0.82
+          ? 0.86
           : poseMatch >= 50
-            ? 0.68
-            : 0.45;
+            ? 0.72
+            : 0.50;
 
   const total = round(
-    clamp(
-      rawTotal * poseGate
-    )
+    clamp(rawTotal * poseGate)
   );
 
   return {
     total,
 
-    physique: round(
-      physique
-    ),
+    physique: round(physique),
+    poseExecution: round(poseExecution),
+    symmetry: round(symmetry),
+    posture: round(posture),
 
-    poseExecution: round(
-      poseExecution
-    ),
-
-    symmetry: round(
-      symmetry
-    ),
-
-    posture: round(
-      posture
-    ),
-
-    poseMatch: round(
-      poseMatch
-    ),
-
+    poseMatch,
     confidence,
 
     left: f.leftElbowAngle,
     right: f.rightElbowAngle,
 
-    shoulderTilt:
-      f.shoulderTilt,
-
-    torsoTilt:
-      f.torsoTilt,
+    shoulderTilt: f.shoulderTilt,
+    torsoTilt: f.torsoTilt,
 
     features: f,
   };
@@ -680,11 +501,7 @@ const sub3 = (a, b) => ({
 });
 
 const len3 = v =>
-  Math.hypot(
-    v.x,
-    v.y,
-    v.z
-  );
+  Math.hypot(v.x, v.y, v.z);
 
 const dot3 = (a, b) =>
   a.x * b.x +
@@ -696,8 +513,7 @@ function angle3d(a, b, c) {
   const v = sub3(c, b);
 
   const denominator =
-    len3(u) *
-    len3(v);
+    len3(u) * len3(v);
 
   if (!denominator) {
     return 180;
@@ -706,8 +522,7 @@ function angle3d(a, b, c) {
   return (
     Math.acos(
       clamp(
-        dot3(u, v) /
-          denominator,
+        dot3(u, v) / denominator,
         -1,
         1
       )
@@ -717,34 +532,42 @@ function angle3d(a, b, c) {
   );
 }
 
-function candidateScore(checks) {
-  const totalWeight =
-    checks.reduce(
-      (total, check) =>
-        total + check.weight,
-      0
-    );
-
-  const passedWeight =
-    checks.reduce(
-      (score, check) =>
-        score +
-        (check.ok
-          ? check.weight
-          : 0),
-      0
-    );
-
-  return passedWeight /
-    totalWeight;
-}
-
-function candidate(key, checks) {
+function candidate(key, confidence) {
   return {
     key,
-    confidence:
-      candidateScore(checks),
+    confidence: clamp(
+      confidence,
+      0,
+      1
+    ),
   };
+}
+
+function averageChecks(checks) {
+  const totalWeight =
+    checks.reduce(
+      (sum, item) =>
+        sum + item.weight,
+      0
+    );
+
+  if (!totalWeight) {
+    return 0;
+  }
+
+  return (
+    checks.reduce(
+      (sum, item) =>
+        sum +
+        item.score *
+          item.weight,
+      0
+    ) / totalWeight
+  );
+}
+
+function normalized01(value) {
+  return clamp(value, 0, 100) / 100;
 }
 
 export function classifyPose(p, w) {
@@ -771,9 +594,7 @@ export function classifyPose(p, w) {
   ];
 
   if (
-    required.some(
-      index => !w[index]
-    )
+    required.some(index => !w[index])
   ) {
     return {
       key: null,
@@ -793,27 +614,16 @@ export function classifyPose(p, w) {
   const lW = w[15];
   const rW = w[16];
 
-  const f =
-    normalizedFeatures(p);
-
-  /*
-   * Yaw:
-   * 0°   = front/back
-   * 90°  = side
-   */
+  const f = normalizedFeatures(p);
 
   const shoulderWidth3d =
     Math.max(
       0.001,
-      Math.abs(
-        lS.x - rS.x
-      )
+      Math.abs(lS.x - rS.x)
     );
 
   const shoulderDepth =
-    Math.abs(
-      lS.z - rS.z
-    );
+    Math.abs(lS.z - rS.z);
 
   const yaw =
     Math.atan2(
@@ -822,13 +632,6 @@ export function classifyPose(p, w) {
     ) *
     180 /
     Math.PI;
-
-  /*
-   * Determine front vs back.
-   *
-   * The nose being visible and closer to the camera
-   * is used as the main front-facing signal.
-   */
 
   const shoulderMidZ =
     (lS.z + rS.z) / 2;
@@ -839,25 +642,44 @@ export function classifyPose(p, w) {
     p[0]?.visibility ?? 0;
 
   const noseFrontSignal =
-    noseVisibility >= 0.55 &&
+    noseVisibility >= 0.50 &&
     nose.z <
-      shoulderMidZ + 0.10;
+      shoulderMidZ + 0.12;
 
   const facing =
     noseFrontSignal
       ? 'front'
       : 'back';
 
-  /*
-   * Transitional angles are intentionally ignored.
-   * This prevents the classifier from forcing a pose
-   * when the person is between front and side.
-   */
+  const lAngle = angle3d(
+    lS,
+    lE,
+    lW
+  );
 
-  if (
-    yaw >= 30 &&
-    yaw < 45
-  ) {
+  const rAngle = angle3d(
+    rS,
+    rE,
+    rW
+  );
+
+  const shoulderY =
+    (lS.y + rS.y) / 2;
+
+  const elbowY =
+    (lE.y + rE.y) / 2;
+
+  const wristY =
+    (lW.y + rW.y) / 2;
+
+  const candidates = [];
+
+  /*
+   * When the person is between a clear front/back
+   * position and a true side position, don't force
+   * a pose label.
+   */
+  if (yaw >= 25 && yaw < 50) {
     return {
       key: null,
       confidence: 0,
@@ -867,413 +689,464 @@ export function classifyPose(p, w) {
     };
   }
 
-  const lAngle =
-    angle3d(
-      lS,
-      lE,
-      lW
-    );
+  /* ---------------------------- front / back ---------------------------- */
 
-  const rAngle =
-    angle3d(
-      rS,
-      rE,
-      rW
-    );
+  if (yaw < 50) {
+    const doubleBiceps =
+      averageChecks([
+        {
+          weight: 0.16,
+          score: rangeScore(
+            Math.abs(
+              lE.y - rE.y
+            ),
+            0,
+            0.20,
+            0.16
+          ),
+        },
 
-  const candidates = [];
+        {
+          weight: 0.16,
+          score: rangeScore(
+            shoulderY -
+              (lE.y + rE.y) / 2,
+            -0.05,
+            0.18,
+            0.18
+          ),
+        },
 
-  /* =========================================================
-     FRONT / BACK
-     ========================================================= */
+        {
+          weight: 0.17,
+          score: rangeScore(
+            lAngle,
+            45,
+            125,
+            35
+          ),
+        },
 
-  if (yaw < 30) {
+        {
+          weight: 0.17,
+          score: rangeScore(
+            rAngle,
+            45,
+            125,
+            35
+          ),
+        },
 
-    /*
-     * DOUBLE BICEPS
-     *
-     * Required characteristics:
-     * - elbows raised
-     * - wrists above elbows
-     * - elbows bent
-     * - elbows reasonably separated
-     */
+        {
+          weight: 0.14,
+          score: rangeScore(
+            lE.y - lW.y,
+            0.04,
+            0.35,
+            0.16
+          ),
+        },
 
-    const doubleBicepsChecks = [
-      {
-        weight: 0.14,
-        ok:
-          Math.abs(
-            lE.y - rE.y
-          ) < 0.20,
-      },
+        {
+          weight: 0.14,
+          score: rangeScore(
+            rE.y - rW.y,
+            0.04,
+            0.35,
+            0.16
+          ),
+        },
 
-      {
-        weight: 0.14,
-        ok:
-          lE.y <
-          (
-            (lS.y + rS.y) / 2
-          ) + 0.08,
-      },
-
-      {
-        weight: 0.16,
-        ok:
-          lAngle > 35 &&
-          lAngle < 125,
-      },
-
-      {
-        weight: 0.16,
-        ok:
-          rAngle > 35 &&
-          rAngle < 125,
-      },
-
-      {
-        weight: 0.14,
-        ok:
-          lW.y <
-          lE.y - 0.04,
-      },
-
-      {
-        weight: 0.14,
-        ok:
-          rW.y <
-          rE.y - 0.04,
-      },
-
-      {
-        weight: 0.12,
-        ok:
-          f.elbowSpread > 0.80,
-      },
-    ];
+        {
+          weight: 0.06,
+          score: clamp(
+            f.elbowSpread * 70
+          ),
+        },
+      ]);
 
     candidates.push(
       candidate(
         facing === 'front'
           ? 'front'
           : 'back',
-        doubleBicepsChecks
+        normalized01(
+          doubleBiceps
+        )
       )
     );
 
-    /* ---------------- FRONT POSES ---------------- */
+    /* ---------------------------- most muscular ---------------------------- */
 
     if (facing === 'front') {
+      const most =
+        averageChecks([
+          {
+            weight: 0.22,
+            score: rangeScore(
+              f.wristDistance,
+              0,
+              0.75,
+              0.35
+            ),
+          },
 
-      /*
-       * MOST MUSCULAR
-       *
-       * Compact hands and elbows.
-       * Arms are generally lower than double biceps.
-       */
+          {
+            weight: 0.18,
+            score: rangeScore(
+              f.elbowSpread,
+              0,
+              1.15,
+              0.45
+            ),
+          },
 
-      const mostChecks = [
-        {
-          weight: 0.20,
-          ok:
-            f.wristDistance <
-            0.75,
-        },
+          {
+            weight: 0.16,
+            score:
+              f.wristsBelowShoulders
+                ? 100
+                : 20,
+          },
 
-        {
-          weight: 0.18,
-          ok:
-            f.elbowSpread <
-            1.15,
-        },
+          {
+            weight: 0.14,
+            score:
+              !f.wristsAboveElbows
+                ? 100
+                : 25,
+          },
 
-        {
-          weight: 0.16,
-          ok:
-            f.wristsBelowShoulders,
-        },
+          {
+            weight: 0.15,
+            score: rangeScore(
+              Math.min(
+                lAngle,
+                rAngle
+              ),
+              45,
+              145,
+              40
+            ),
+          },
 
-        {
-          weight: 0.14,
-          ok:
-            !f.wristsAboveElbows,
-        },
-
-        {
-          weight: 0.16,
-          ok:
-            lAngle < 145 ||
-            rAngle < 145,
-        },
-
-        {
-          weight: 0.16,
-          ok:
-            !f.armsOpen,
-        },
-      ];
+          {
+            weight: 0.15,
+            score:
+              f.armsOpen
+                ? 25
+                : 95,
+          },
+        ]);
 
       candidates.push(
         candidate(
           'most',
-          mostChecks
+          normalized01(most)
         )
       );
 
-      /*
-       * ABS & THIGH
-       *
-       * Hands should be clearly higher than the
-       * ordinary front poses.
-       */
+      /* ---------------------------- abs & thigh ---------------------------- */
 
-      const absChecks = [
-        {
-          weight: 0.24,
-          ok:
-            lW.y <
-              lS.y - 0.05 &&
-            rW.y <
-              rS.y - 0.05,
-        },
+      const absThigh =
+        averageChecks([
+          {
+            weight: 0.24,
+            score:
+              lW.y <
+                lS.y - 0.04 &&
+              rW.y <
+                rS.y - 0.04
+                ? 100
+                : 25,
+          },
 
-        {
-          weight: 0.16,
-          ok:
-            lE.y <
-              lS.y + 0.02 &&
-            rE.y <
-              rS.y + 0.02,
-        },
+          {
+            weight: 0.16,
+            score:
+              lE.y <
+                lS.y + 0.05 &&
+              rE.y <
+                rS.y + 0.05
+                ? 100
+                : 25,
+          },
 
-        {
-          weight: 0.16,
-          ok:
-            lAngle > 55 &&
-            lAngle < 150,
-        },
+          {
+            weight: 0.16,
+            score: rangeScore(
+              lAngle,
+              55,
+              150,
+              35
+            ),
+          },
 
-        {
-          weight: 0.16,
-          ok:
-            rAngle > 55 &&
-            rAngle < 150,
-        },
+          {
+            weight: 0.16,
+            score: rangeScore(
+              rAngle,
+              55,
+              150,
+              35
+            ),
+          },
 
-        {
-          weight: 0.14,
-          ok:
-            Math.abs(
-              lW.y - rW.y
-            ) < 0.24,
-        },
+          {
+            weight: 0.14,
+            score: rangeScore(
+              Math.abs(
+                lW.y - rW.y
+              ),
+              0,
+              0.24,
+              0.18
+            ),
+          },
 
-        {
-          weight: 0.14,
-          ok:
-            Math.abs(
-              lW.x - rW.x
-            ) < 0.95,
-        },
-      ];
+          {
+            weight: 0.14,
+            score: rangeScore(
+              Math.abs(
+                lW.x - rW.x
+              ),
+              0,
+              0.95,
+              0.35
+            ),
+          },
+        ]);
 
       candidates.push(
         candidate(
           'absThigh',
-          absChecks
+          normalized01(
+            absThigh
+          )
         )
       );
-
     } else {
+      /* ---------------------------- rear lat ---------------------------- */
 
-      /* ---------------- BACK POSES ---------------- */
+      const rearLat =
+        averageChecks([
+          {
+            weight: 0.20,
+            score: rangeScore(
+              f.elbowSpread,
+              1.05,
+              2.20,
+              0.50
+            ),
+          },
 
-      /*
-       * REAR LAT SPREAD
-       *
-       * Wide elbows
-       * Low hands
-       * Open arms
-       */
+          {
+            weight: 0.16,
+            score: rangeScore(
+              f.elbowLevel,
+              55,
+              100,
+              35
+            ),
+          },
 
-      const rearLatChecks = [
-        {
-          weight: 0.20,
-          ok:
-            f.elbowSpread >
-            1.05,
-        },
+          {
+            weight: 0.22,
+            score:
+              f.wristsNearWaist ===
+              100
+                ? 100
+                : f.wristsNearWaist,
+          },
 
-        {
-          weight: 0.16,
-          ok:
-            f.elbowLevel >
-            55,
-        },
+          {
+            weight: 0.14,
+            score: rangeScore(
+              f.wristDistance,
+              0.70,
+              2.00,
+              0.45
+            ),
+          },
 
-        {
-          weight: 0.22,
-          ok:
-            f.wristsNearWaist ===
-            100,
-        },
+          {
+            weight: 0.14,
+            score:
+              f.wristsBelowShoulders
+                ? 100
+                : 20,
+          },
 
-        {
-          weight: 0.14,
-          ok:
-            f.wristDistance >
-            0.70,
-        },
-
-        {
-          weight: 0.14,
-          ok:
-            f.wristsBelowShoulders,
-        },
-
-        {
-          weight: 0.14,
-          ok:
-            f.armsOpen,
-        },
-      ];
+          {
+            weight: 0.14,
+            score:
+              f.armsOpen
+                ? 100
+                : 20,
+          },
+        ]);
 
       candidates.push(
         candidate(
           'rearLat',
-          rearLatChecks
+          normalized01(
+            rearLat
+          )
         )
       );
     }
+  }
 
-  } else if (yaw >= 45) {
+  /* ---------------------------- side poses ---------------------------- */
 
-    /* =========================================================
-       SIDE POSES
-       ========================================================= */
-
+  else {
     const wristNearChest =
-      [lW, rW].filter(
-        wrist =>
-          Math.hypot(
-            wrist.x -
-              f.shoulderMid.x,
-
-            wrist.y -
-              (
-                f.shoulderMid.y +
-                0.15
-              )
-          ) < 0.30
+      [
+        lW,
+        rW,
+      ].filter(wrist =>
+        Math.hypot(
+          wrist.x -
+            f.shoulderMid.x,
+          wrist.y -
+            (f.shoulderMid.y +
+              0.15)
+        ) < 0.32
       ).length;
 
-    /*
-     * SIDE CHEST
-     *
-     * Clear side rotation
-     * Bent arm position
-     * At least one hand near chest
-     */
+    /* ---------------------------- side chest ---------------------------- */
 
-    const sideChestChecks = [
-      {
-        weight: 0.25,
-        ok:
-          shoulderDepth >
-          0.025,
-      },
+    const sideChest =
+      averageChecks([
+        {
+          weight: 0.24,
+          score: rangeScore(
+            shoulderDepth,
+            0.025,
+            0.35,
+            0.04
+          ),
+        },
 
-      {
-        weight: 0.20,
-        ok:
-          Math.min(
-            lAngle,
-            rAngle
-          ) < 130,
-      },
+        {
+          weight: 0.20,
+          score: rangeScore(
+            Math.min(
+              lAngle,
+              rAngle
+            ),
+            45,
+            135,
+            40
+          ),
+        },
 
-      {
-        weight: 0.25,
-        ok:
-          wristNearChest >= 1,
-      },
+        {
+          weight: 0.22,
+          score:
+            wristNearChest >= 1
+              ? 100
+              : 25,
+        },
 
-      {
-        weight: 0.15,
-        ok:
-          f.elbowSpread <
-          1.30,
-      },
+        {
+          weight: 0.18,
+          score: rangeScore(
+            f.elbowSpread,
+            0,
+            1.30,
+            0.45
+          ),
+        },
 
-      {
-        weight: 0.15,
-        ok:
-          Math.abs(
-            lAngle - rAngle
-          ) < 55,
-      },
-    ];
-
-    /*
-     * SIDE TRICEPS
-     *
-     * One arm substantially straighter
-     * Other arm bent
-     * Clear side rotation
-     */
-
-    const sideTricepsChecks = [
-      {
-        weight: 0.25,
-        ok:
-          shoulderDepth >
-          0.025,
-      },
-
-      {
-        weight: 0.28,
-        ok:
-          Math.max(
-            lAngle,
-            rAngle
-          ) > 145,
-      },
-
-      {
-        weight: 0.20,
-        ok:
-          Math.min(
-            lAngle,
-            rAngle
-          ) < 135,
-      },
-
-      {
-        weight: 0.17,
-        ok:
-          Math.abs(
-            lAngle - rAngle
-          ) > 25,
-      },
-
-      {
-        weight: 0.10,
-        ok:
-          f.wristLevel > 35,
-      },
-    ];
+        {
+          weight: 0.16,
+          score: rangeScore(
+            Math.abs(
+              lAngle -
+                rAngle
+            ),
+            0,
+            55,
+            25
+          ),
+        },
+      ]);
 
     candidates.push(
       candidate(
         'side',
-        sideChestChecks
+        normalized01(
+          sideChest
+        )
       )
     );
+
+    /* ---------------------------- side triceps ---------------------------- */
+
+    const sideTriceps =
+      averageChecks([
+        {
+          weight: 0.24,
+          score: rangeScore(
+            shoulderDepth,
+            0.025,
+            0.35,
+            0.04
+          ),
+        },
+
+        {
+          weight: 0.28,
+          score: rangeScore(
+            Math.max(
+              lAngle,
+              rAngle
+            ),
+            135,
+            180,
+            30
+          ),
+        },
+
+        {
+          weight: 0.20,
+          score: rangeScore(
+            Math.min(
+              lAngle,
+              rAngle
+            ),
+            45,
+            135,
+            40
+          ),
+        },
+
+        {
+          weight: 0.18,
+          score: rangeScore(
+            Math.abs(
+              lAngle -
+                rAngle
+            ),
+            25,
+            160,
+            25
+          ),
+        },
+
+        {
+          weight: 0.10,
+          score: f.wristLevel,
+        },
+      ]);
 
     candidates.push(
       candidate(
         'sideTriceps',
-        sideTricepsChecks
+        normalized01(
+          sideTriceps
+        )
       )
     );
   }
@@ -1297,17 +1170,17 @@ export function classifyPose(p, w) {
       : 0;
 
   /*
-   * IMPORTANT:
+   * More forgiving than the previous classifier.
    *
-   * If detection is uncertain, return null.
-   * It is better to show "looking for a pose"
-   * than to confidently call the wrong pose.
+   * The temporal tracker in PoseBattleCam.jsx
+   * handles stability across multiple frames, so
+   * the classifier doesn't need to demand an
+   * extremely high one-frame confidence.
    */
-
   if (
     !best ||
-    best.confidence < 0.78 ||
-    margin < 0.10
+    best.confidence < 0.58 ||
+    margin < 0.06
   ) {
     return {
       key: null,
@@ -1321,8 +1194,7 @@ export function classifyPose(p, w) {
 
   return {
     key: best.key,
-    confidence:
-      best.confidence,
+    confidence: best.confidence,
     margin,
     yaw,
     facing,
@@ -1340,10 +1212,9 @@ export function buildLogEntry({
   holdSeconds,
 }) {
   const base = {
-    id:
-      `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2, 7)}`,
+    id: `${Date.now()}-${Math.random()
+      .toString(36)
+      .slice(2, 7)}`,
 
     time: Date.now(),
 
@@ -1351,8 +1222,7 @@ export function buildLogEntry({
 
     poseKey,
 
-    poseName:
-      pose.name,
+    poseName: pose.name,
 
     holdSeconds:
       holdSeconds ?? null,
@@ -1440,27 +1310,23 @@ export function buildLogEntry({
     );
 
   const breakdown = {
-    physique:
-      round(
-        mean('physique')
-      ),
+    physique: round(
+      mean('physique')
+    ),
 
-    execution:
-      round(
-        mean(
-          'poseExecution'
-        )
-      ),
+    execution: round(
+      mean(
+        'poseExecution'
+      )
+    ),
 
-    symmetry:
-      round(
-        mean('symmetry')
-      ),
+    symmetry: round(
+      mean('symmetry')
+    ),
 
-    posture:
-      round(
-        mean('posture')
-      ),
+    posture: round(
+      mean('posture')
+    ),
   };
 
   const tips = [];
@@ -1480,8 +1346,12 @@ export function buildLogEntry({
     tips.push(
       elbowAverage >
         pose.elbowTarget
-        ? `Elbows averaged ${round(elbowAverage)}°, so flex more (target about ${pose.elbowTarget}° for this practice profile).`
-        : `Elbows averaged ${round(elbowAverage)}°, so open them a little (target about ${pose.elbowTarget}° for this practice profile).`
+        ? `Elbows averaged ${round(
+            elbowAverage
+          )}°, so flex more (target about ${pose.elbowTarget}° for this practice profile).`
+        : `Elbows averaged ${round(
+            elbowAverage
+          )}°, so open them a little (target about ${pose.elbowTarget}° for this practice profile).`
     );
   }
 
@@ -1491,7 +1361,11 @@ export function buildLogEntry({
     ) > 12
   ) {
     tips.push(
-      `Left and right elbow angles differed by ${round(Math.abs(left - right))}°. Try to match both sides where the pose allows.`
+      `Left and right elbow angles differed by ${round(
+        Math.abs(
+          left - right
+        )
+      )}°. Try to match both sides where the pose allows.`
     );
   }
 
@@ -1499,7 +1373,9 @@ export function buildLogEntry({
     shoulderTilt > 6
   ) {
     tips.push(
-      `Shoulders were tilted about ${round(shoulderTilt)}°. Check that your shoulders are level.`
+      `Shoulders were tilted about ${round(
+        shoulderTilt
+      )}°. Check that your shoulders are level.`
     );
   }
 
@@ -1507,7 +1383,9 @@ export function buildLogEntry({
     torsoTilt > 6
   ) {
     tips.push(
-      `Torso alignment varied by about ${round(torsoTilt)}°. Try to stay centered.`
+      `Torso alignment varied by about ${round(
+        torsoTilt
+      )}°. Try to stay centered.`
     );
   }
 
@@ -1563,11 +1441,9 @@ export function buildLogEntry({
     breakdown,
 
     angles: {
-      left:
-        round(left),
+      left: round(left),
 
-      right:
-        round(right),
+      right: round(right),
 
       shoulderTilt:
         round(
@@ -1580,7 +1456,6 @@ export function buildLogEntry({
         ),
     },
 
-    tips:
-      tips.slice(0, 3),
+    tips: tips.slice(0, 3),
   };
 }
