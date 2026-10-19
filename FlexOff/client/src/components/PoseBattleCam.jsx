@@ -704,6 +704,48 @@ export default function PoseBattleCam() {
           {!modelReady && <button className="secondary" onClick={loadModel} disabled={modelLoading}>{modelLoading ? 'Loading model…' : 'Retry pose model'}</button>}
         </div>
       </div>)}
+{(activeSection === 'studio' || activeSection === 'battle') && (
+  <details className="rubric-panel panel">
+    <summary className="rubric-title">
+      <div>
+        <span className="eyebrow">TRANSPARENT SCORING</span>
+        <h2>How your score works</h2>
+      </div>
+
+      <span className="rubric-tag">100 points</span>
+    </summary>
+
+    <div className="rubric-grid">
+      <div>
+        <strong>35%</strong>
+        <span>Physique presentation proxy</span>
+      </div>
+
+      <div>
+        <strong>30%</strong>
+        <span>Pose execution</span>
+      </div>
+
+      <div>
+        <strong>20%</strong>
+        <span>Symmetry</span>
+      </div>
+
+      <div>
+        <strong>15%</strong>
+        <span>Posture and control</span>
+      </div>
+    </div>
+
+    <p className="rubric-note">
+      Confidence reflects landmark visibility. The physique category uses
+      pose geometry and visibility only—it does not measure actual muscle
+      size or definition.
+    </p>
+  </details>
+)}
+
+      
       {(activeSection === 'progress' || activeSection === 'studio') && <div className="panel log-panel">
         {activeSection === 'progress' && <><div className="section-heading"><div><span className="eyebrow">YOUR TRAINING HISTORY</span><h2>Progress overview</h2></div></div><div className="stats-grid progress-stats"><article className="stat-card"><span>Valid sessions</span><strong>{validLog.length}</strong><small>Sessions with enough tracking</small></article><article className="stat-card"><span>Average score</span><strong>{averageScore === null ? '—' : averageScore}</strong><small>Across all valid sessions</small></article><article className="stat-card"><span>Personal best</span><strong>{bestScore === null ? '—' : bestScore}</strong><small>Best recorded attempt</small></article></div></>}
         <div className="log-head">
