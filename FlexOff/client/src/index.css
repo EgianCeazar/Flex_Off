@@ -235,3 +235,80 @@ button.secondary:hover:not(:disabled) { background: #2a3a4b; }
 .rubric-note { color: #718197; font-size: .78rem; line-height: 1.55; margin: 12px 0 0; }
 .battle-results small { color: #9ba9bc; line-height: 1.5; font-size: .75rem; }
 @media (max-width: 600px) { .rubric-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+/* Omegle-style FlexOff live battle */
+.online-battle-stage { margin-top: 14px; background: #080d13; border: 1px solid #273342; border-radius: 22px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.24); }
+.online-topbar { display:flex; align-items:center; justify-content:space-between; gap:18px; padding:18px 20px; border-bottom:1px solid #202b37; background:#0d141d; }
+.online-topbar h2 { margin:4px 0 2px; font-size:1.35rem; letter-spacing:-.04em; }
+.online-topbar p { margin:0; color:#8291a5; font-size:.82rem; }
+.online-connection-pill { display:inline-flex; align-items:center; gap:8px; padding:8px 11px; border:1px solid #293747; border-radius:999px; background:#091018; color:#91a0b2; font-size:.68rem; font-weight:900; letter-spacing:.1em; white-space:nowrap; }
+.connection-dot { width:7px; height:7px; border-radius:50%; background:#f59e0b; box-shadow:0 0 0 4px #f59e0b14; }
+.connection-dot.connected { background:#4ade80; box-shadow:0 0 0 4px #4ade8014; }
+.online-lobby-card { margin:20px; padding:28px; display:grid; grid-template-columns:auto 1fr; gap:16px; align-items:center; border:1px solid #2c3a49; border-radius:18px; background:linear-gradient(135deg,#101a24,#0a1118); }
+.lobby-icon { display:grid; place-items:center; width:54px; height:54px; border-radius:16px; background:#bef26418; border:1px solid #bef26444; color:#d9f99d; font-size:1.5rem; }
+.lobby-copy { display:grid; gap:5px; }
+.lobby-copy strong { font-size:1.05rem; }
+.lobby-copy span { color:#8291a5; font-size:.82rem; line-height:1.45; }
+.online-room-actions { grid-column:2; display:flex; flex-wrap:wrap; gap:10px; }
+.room-input-wrap { display:flex; min-width:min(100%,300px); flex:1; }
+.room-input-wrap input { min-width:0; flex:1; padding:12px 13px; color:#eef2ff; background:#080e15; border:1px solid #334456; border-radius:11px 0 0 11px; text-transform:uppercase; letter-spacing:.12em; outline:none; }
+.room-input-wrap button { border-radius:0 11px 11px 0; }
+.online-video-grid { display:grid; grid-template-columns:1fr 1fr; gap:3px; background:#05080c; }
+.online-video-card { min-width:0; background:#0a1017; }
+.video-label { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:10px 13px; background:#0d141d; border-bottom:1px solid #1e2a36; }
+.video-label span { color:#9cacbf; font-size:.68rem; font-weight:900; letter-spacing:.15em; }
+.video-label strong { color:#bef264; font-size:.72rem; letter-spacing:.08em; }
+.online-video-wrap { position:relative; aspect-ratio:16/10; background:#020507; overflow:hidden; }
+.online-video-wrap video { width:100%; height:100%; object-fit:cover; }
+.online-video-wrap canvas { width:100%; height:100%; object-fit:cover; }
+.opponent-video video { transform:none; }
+.video-placeholder { position:absolute; inset:0; display:grid; place-content:center; justify-items:center; gap:7px; background:radial-gradient(circle at center,#111c26 0%,#05080c 65%); color:#73849a; text-align:center; }
+.video-placeholder span { color:#9cacbf; font-size:.7rem; font-weight:900; letter-spacing:.14em; }
+.video-placeholder small { color:#526276; font-size:.72rem; }
+.video-placeholder button { margin-top:6px; padding:9px 13px; }
+.online-pose-overlay { position:absolute; left:12px; right:12px; bottom:12px; display:grid; gap:3px; padding:10px 12px; border:1px solid #2e3c4d; border-radius:12px; background:rgba(5,9,13,.88); backdrop-filter:blur(8px); }
+.online-pose-overlay.match { border-color:#a3e635; background:rgba(14,35,19,.9); }
+.online-pose-overlay small { color:#8999ac; font-size:.62rem; font-weight:900; letter-spacing:.12em; }
+.online-pose-overlay strong { font-size:clamp(.85rem,1.6vw,1.1rem); }
+.online-pose-overlay span { color:#a5b4c5; font-size:.7rem; }
+.opponent-timer-hint { position:absolute; top:12px; left:50%; transform:translateX(-50%); padding:7px 10px; border-radius:999px; background:#05090de8; border:1px solid #36485a; color:#d9f99d; font-size:.64rem; font-weight:900; letter-spacing:.1em; white-space:nowrap; }
+.video-footer { display:flex; justify-content:space-between; align-items:center; gap:10px; padding:8px 11px; color:#73849a; font-size:.7rem; }
+.mini-status { color:#7c8da0; }
+.mini-status.good { color:#a7e3bd; }
+.peer-name { color:#66778b; }
+.online-battle-console { padding:16px; background:#0b121a; border-top:1px solid #202c38; }
+.console-top { display:flex; align-items:center; justify-content:space-between; gap:18px; }
+.console-top > div:first-child { display:grid; gap:3px; }
+.console-top strong { font-size:1.15rem; }
+.console-top small { color:#718197; font-size:.72rem; }
+.live-score-duel { display:flex; align-items:center; gap:12px; }
+.live-score-duel div { display:grid; justify-items:center; gap:2px; min-width:70px; }
+.live-score-duel span { color:#708198; font-size:.58rem; font-weight:900; letter-spacing:.1em; }
+.live-score-duel b { color:#bef264; font-size:1.6rem; line-height:1; }
+.live-score-duel em { color:#4d5c6e; font-style:normal; font-size:.7rem; font-weight:900; }
+.online-round-hint { margin-top:12px; padding:9px 11px; border-radius:9px; background:#080e15; color:#78899d; font-size:.72rem; text-align:center; }
+.online-main-controls { display:flex; flex-wrap:wrap; align-items:center; justify-content:center; gap:9px; margin-top:13px; }
+.battle-ready-button { min-width:190px; padding:13px 20px; background:#bef264; color:#14220c; font-size:.82rem; letter-spacing:.04em; }
+.battle-hold { padding:0 4px; }
+.danger-button { color:#fda4af !important; }
+.online-console-status { min-height:1.35em; margin-top:10px; text-align:center; color:#8796a9; font-size:.76rem; }
+.online-winner-banner { margin-top:12px; padding:14px; display:grid; justify-items:center; gap:4px; border:1px solid #5a783b; border-radius:13px; background:linear-gradient(135deg,#172718,#0c1510); }
+.online-winner-banner span { color:#d9f99d; font-size:.67rem; font-weight:900; letter-spacing:.16em; }
+.online-winner-banner strong { font-size:1.6rem; letter-spacing:-.04em; }
+.online-winner-banner small { color:#7f927e; font-size:.68rem; }
+@media (max-width:720px) {
+  .online-topbar { align-items:flex-start; flex-direction:column; }
+  .online-connection-pill { align-self:flex-start; }
+  .online-lobby-card { grid-template-columns:auto 1fr; margin:12px; padding:18px; }
+  .online-room-actions { grid-column:1 / -1; }
+  .online-video-grid { grid-template-columns:1fr; }
+  .online-video-wrap { aspect-ratio:16/9; }
+  .console-top { align-items:flex-start; flex-direction:column; }
+  .live-score-duel { width:100%; justify-content:center; }
+}
+@media (max-width:480px) {
+  .online-battle-stage { border-radius:15px; }
+  .online-main-controls > button { flex:1; min-width:120px; }
+  .battle-ready-button { min-width:100%; }
+  .room-input-wrap { min-width:100%; }
+}

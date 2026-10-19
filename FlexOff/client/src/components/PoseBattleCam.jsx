@@ -10,7 +10,7 @@ const HOLD_CHOICES = [5, 10, 15];
 const GUIDED_SEQUENCE = ['front', 'side', 'back', 'rearLat', 'frontLat', 'sideTriceps', 'absThigh', 'most'];
 const MODE_LABELS = { guided: 'Guided', freestyle: 'Freestyle', battle: 'Battle', online: 'Online' };
 const WASM_URL = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.35/wasm';
-const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_lite/float16/1/pose_landmarker_lite.task';
+const MODEL_URL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/pose_landmarker_full/float16/1/pose_landmarker_full.task';
 
 const POSES = {
   front: {
@@ -169,6 +169,23 @@ export default function PoseBattleCam() {
     online.join(code);
   }
 
+  function createOnlineRoom() {
+    const code = makeRoomCode();
+    setRoomInput(code);
+    setMyOnlineScore(null); setOpponentScore(null); setMyReady(false); setOnlineReadyCount(0);
+    online.join(code);
+  }
+
+  async function copyRoomCode() {
+    if (!online.joinedRoom) return;
+    try {
+      await navigator.clipboard.writeText(online.joinedRoom);
+      setStatus(`Room code ${online.joinedRoom} copied. Send it to your opponent.`);
+    } catch {
+      setStatus(`Send this room code to your opponent: ${online.joinedRoom}`);
+    }
+  }
+
   function lockInOnlineScore() {
     const value = lastResult?.score;
     if (value == null) { setStatus('Run the pose timer first, then lock in your score.'); return; }
@@ -291,16 +308,19 @@ export default function PoseBattleCam() {
     setDetectedKey(null);
   }
 
-  // Majority vote over the last few frames so the detected pose doesn't flicker.
+  // Freestyle detection uses confidence + a margin between the best and second-best pose.
+  // If the model is unsure, FlexOff deliberately shows no detected pose instead of guessing.
   function trackDetectedPose(p, w) {
     const result = p && w ? classifyPose(p, w) : null;
     const history = detectHistoryRef.current;
     history.push(result?.key || null);
-    if (history.length > 12) history.shift();
+    if (history.length > 15) history.shift();
     const counts = {};
     history.forEach(k => { if (k) counts[k] = (counts[k] || 0) + 1; });
-    const [bestKey, bestCount] = Object.entries(counts).sort((a, b) => b[1] - a[1])[0] || [null, 0];
-    const stable = bestCount >= 7 ? bestKey : null;
+    const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+    const [bestKey, bestCount] = entries[0] || [null, 0];
+    const secondCount = entries[1]?.[1] || 0;
+    const stable = bestCount >= 9 && (bestCount - secondCount) >= 2 ? bestKey : null;
     if (stable !== stableDetectedRef.current) { stableDetectedRef.current = stable; setDetectedKey(stable); }
     return stable;
   }
@@ -342,8 +362,15 @@ export default function PoseBattleCam() {
           if (visible) {
             const detectedPoseKey = trackDetectedPose(p, result.worldLandmarks?.[0]);
             const poseKey = autoModeRef.current ? detectedPoseKey : selectedPoseKeyRef.current;
-            if (poseKey) { sample = scoreFrame(p, { ...POSES[poseKey], key: poseKey }); setScore(sample?.total ?? null); }
-            else setScore(null);
+            if (poseKey) {
+              sample = scoreFrame(p, { ...POSES[poseKey], key: poseKey });
+              setScore(sample?.total ?? null);
+              if (!autoModeRef.current && sample?.poseMatch < 45) {
+                setStatus(`Pose does not match well (${sample.poseMatch}%). Follow the ${POSES[poseKey].name} cue.`);
+              }
+            } else {
+              setScore(null);
+            }
           } else { setScore(null); if (autoModeRef.current) trackDetectedPose(null, null); }
         } else { setLandmarksVisible(false); setScore(null); if (autoModeRef.current) trackDetectedPose(null, null); }
         recordFrame(sample);
@@ -374,7 +401,7 @@ export default function PoseBattleCam() {
       pose: POSES[poseKey], poseKey, mode: modeRef.current, holdSeconds: holdSecondsRef.current,
     });
     addLogEntry(entry);
-    setLastResult({ score: entry.score, poseKey, id: entry.id, breakdown: entry.breakdown, confidence: entry.confidence, tips: entry.tips });
+    setLastResult({ score: entry.score, poseKey, id: entry.id, breakdown: entry.breakdown, confidence: entry.confidence, poseMatch: entry.poseMatch, tips: entry.tips });
     holdSamplesRef.current = [];
     clearScore(); // reset the live analysis so the next pose starts fresh
     if (modeRef.current === 'online') {
@@ -600,49 +627,89 @@ export default function PoseBattleCam() {
         <p className="rubric-note">Confidence reflects landmark visibility. The physique category uses pose geometry and visibility only—it does not measure actual muscle size or definition.</p>
       </div>}
 
-      {(activeSection === 'studio' || activeSection === 'battle') && <div className={`panel camera-panel ${mode === 'online' ? 'online-cameras' : ''}`}>
-        <div className="camera-grid">
-        <section className="camera-column">
-          <h2 className="camera-heading">You</h2>
-        <div className="video-wrap">
-          <video ref={videoRef} autoPlay playsInline muted aria-label="Your local camera preview" />
-          <canvas ref={canvasRef} aria-hidden="true" />
-          <div className="score"><small>Pose score</small><strong>{score === null ? '—' : score}<span style={{ fontSize: '.9rem', color: '#9fb4c8' }}> / 100</span></strong></div>
-          {timer.phase !== 'idle' && <div className="timer-overlay" role="timer" aria-live="polite">
-            {timer.phase === 'countdown'
-              ? <><small>Get ready</small><strong>{timer.secondsLeft}</strong></>
-              : <><small>Hold it!</small><strong>{timer.secondsLeft}s</strong><div className="timer-bar"><div key={holdSeconds} style={{ animationDuration: `${holdSeconds}s` }} /></div></>}
-          </div>}
-          <div className={`detected-pose-banner ${autoMode && detectedKey ? 'detected' : ''} ${autoMode && !detectedKey ? 'searching' : ''}`} aria-live="polite">
-            <small>{autoMode ? (detectedKey ? 'POSE DETECTED' : 'AUTO-DETECT') : (detectedKey === selectedPose ? 'TARGET MATCH' : 'TARGET POSE')}</small>
-            <strong>{autoMode ? (detectedKey ? POSES[detectedKey].name : 'Looking for a pose…') : POSES[selectedPose].name}</strong>
-            <span>{autoMode ? (detectedKey ? '✓ Stable detection' : 'Hold steady in frame') : detectedKey === selectedPose ? '✓ Matching target pose' : detectedKey ? `Detected: ${POSES[detectedKey].name}` : 'Pose not clear yet'}</span>
+      {(activeSection === 'studio' || activeSection === 'battle') && (mode === 'online' ? <section className="online-battle-stage">
+        <div className="online-topbar">
+          <div>
+            <span className="eyebrow">LIVE HEAD-TO-HEAD</span>
+            <h2>FlexOff Arena</h2>
+            <p>{online.joinedRoom ? (online.peerPresent ? 'Opponent connected. Get your camera in frame.' : 'Waiting for your opponent to join…') : 'Create a room or enter a friend's code to connect.'}</p>
           </div>
-          <div className={`tracking-pill ${landmarksVisible ? 'is-ready' : ''}`}>{!running ? 'Camera off' : !modelReady ? 'Preview only' : landmarksVisible ? 'Pose detected' : 'Move fully into frame'}</div>
+          <div className="online-connection-pill"><span className={`connection-dot ${online.peerPresent ? 'connected' : ''}`} />{online.peerPresent ? (online.videoState === 'connected' ? 'VIDEO CONNECTED' : 'CONNECTING VIDEO') : 'WAITING FOR OPPONENT'}</div>
         </div>
-        </section>
-        {mode === 'online' && <div className="opponent-wrap camera-column">
-          <h2>Opponent camera</h2>
-          <div className="video-wrap">
-            <video ref={remoteVideoRef} autoPlay playsInline muted aria-label="Your opponent's camera" />
-            {!online.remoteStream && <div className="tracking-pill">{online.peerPresent ? 'Waiting for their video…' : 'No opponent yet'}</div>}
+
+        {!online.joinedRoom ? <div className="online-lobby-card">
+          <div className="lobby-icon">⚔</div>
+          <div className="lobby-copy"><strong>Start a private battle</strong><span>Create a room and send the code to your friend, or join their room.</span></div>
+          <div className="online-room-actions">
+            <button onClick={createOnlineRoom}>Create battle room</button>
+            <div className="room-input-wrap"><input value={roomInput} onChange={e => setRoomInput(e.target.value.replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40))} placeholder="Enter room code" aria-label="Room code" /><button className="secondary" onClick={joinOnlineRoom} disabled={!roomInput.trim()}>Join</button></div>
           </div>
-        </div>}
+          {online.error && <p className="online-error" role="alert">{online.error}</p>}
+        </div> : <>
+          <div className="online-video-grid">
+            <section className="online-video-card is-you">
+              <div className="video-label"><span>YOU</span><strong>{myOnlineScore === null ? 'READY TO POSE' : `${myOnlineScore}/100`}</strong></div>
+              <div className="online-video-wrap">
+                <video ref={videoRef} autoPlay playsInline muted aria-label="Your live camera" />
+                <canvas ref={canvasRef} aria-hidden="true" />
+                {!running && <div className="video-placeholder"><span>CAMERA OFF</span><button onClick={startCamera}>Start camera</button></div>}
+                {timer.phase !== 'idle' && <div className="timer-overlay" role="timer" aria-live="polite"><small>{timer.phase === 'countdown' ? 'GET READY' : 'HOLD IT!'}</small><strong>{timer.secondsLeft}</strong>{timer.phase === 'hold' && <div className="timer-bar"><div key={holdSeconds} style={{ animationDuration: `${holdSeconds}s` }} /></div>}</div>}
+                <div className={`online-pose-overlay ${detectedKey === selectedPose ? 'match' : ''}`}><small>{detectedKey === selectedPose ? 'POSE MATCH' : 'TARGET POSE'}</small><strong>{POSES[selectedPose].name}</strong><span>{score === null ? 'Waiting for a clear read…' : `Live score ${score}/100`}</span></div>
+              </div>
+              <div className="video-footer"><span className={`mini-status ${landmarksVisible ? 'good' : ''}`}>{!running ? 'Camera off' : landmarksVisible ? 'Tracking' : 'Move into frame'}</span><label className="check-row"><input type="checkbox" checked={shareVideo} onChange={e => setShareVideo(e.target.checked)} /> Share video</label></div>
+            </section>
+
+            <section className="online-video-card is-opponent">
+              <div className="video-label"><span>OPPONENT</span><strong>{opponentScore === null ? (online.peerPresent ? 'POSE BATTLE' : 'WAITING') : `${opponentScore}/100`}</strong></div>
+              <div className="online-video-wrap opponent-video">
+                <video ref={remoteVideoRef} autoPlay playsInline muted aria-label="Your opponent's live camera" />
+                {!online.remoteStream && <div className="video-placeholder"><span>{online.peerPresent ? 'WAITING FOR VIDEO' : 'WAITING FOR OPPONENT'}</span><small>{online.peerPresent ? 'Their camera will appear here.' : 'Send them your room code.'}</small></div>}
+                {timer.phase !== 'idle' && <div className="opponent-timer-hint"><span>{timer.phase === 'countdown' ? `STARTING IN ${timer.secondsLeft}` : `HOLD ${timer.secondsLeft}s`}</span></div>}
+              </div>
+              <div className="video-footer"><span className={`mini-status ${online.remoteStream ? 'good' : ''}`}>{online.remoteStream ? 'Live peer video' : 'No video yet'}</span><span className="peer-name">Private 1v1</span></div>
+            </section>
+          </div>
+
+          <div className="online-battle-console">
+            <div className="console-top">
+              <div><span className="eyebrow">CURRENT POSE</span><strong>{POSES[selectedPose].name}</strong><small>{POSES[selectedPose].focus}</small></div>
+              <div className="live-score-duel"><div><span>YOU</span><b>{myOnlineScore ?? score ?? '—'}</b></div><em>VS</em><div><span>OPPONENT</span><b>{opponentScore ?? '—'}</b></div></div>
+            </div>
+            {timer.phase === 'idle' && <div className="online-round-hint">{onlineReadyCount}/2 ready · both players must be ready before the synchronized countdown begins.</div>}
+            <div className="online-main-controls">
+              {timer.phase === 'idle' && myOnlineScore === null ? <button className="battle-ready-button" onClick={() => { const next = !myReady; setMyReady(next); online.setReady(next, holdSeconds); setStatus(next ? 'Ready. Waiting for your opponent…' : 'You are no longer ready.'); }} disabled={!running || !online.peerPresent}>{myReady ? 'READY ✓' : 'READY TO BATTLE'}</button> : timer.phase !== 'idle' ? <button className="secondary" onClick={() => cancelTimer('Round cancelled.')} >Cancel round</button> : <button className="battle-ready-button" onClick={onlineRematch}>REMATCH</button>}
+              <label className="hold-pick battle-hold">HOLD <select value={holdSeconds} disabled={timer.phase !== 'idle' || myReady || myOnlineScore !== null} onChange={e => setHoldSeconds(Number(e.target.value))}>{HOLD_CHOICES.map(n => <option key={n} value={n}>{n}s</option>)}</select></label>
+              <button className="secondary" onClick={copyRoomCode}>COPY CODE</button>
+              <button className="secondary danger-button" onClick={() => { online.leave(); setMyOnlineScore(null); setOpponentScore(null); setMyReady(false); setOnlineReadyCount(0); }}>LEAVE</button>
+            </div>
+            <div className="online-console-status" role="status">{status}</div>
+            {myOnlineScore !== null && opponentScore !== null && <div className="online-winner-banner"><span>{myOnlineScore === opponentScore ? 'DRAW' : myOnlineScore > opponentScore ? 'YOU WIN' : 'OPPONENT WINS'}</span><strong>{myOnlineScore} — {opponentScore}</strong><small>Round complete · scores are based on the same FlexOff pose rubric.</small></div>}
+          </div>
+        </>}
+      </section> : <div className="panel camera-panel">
+        <div className="camera-grid">
+          <section className="camera-column">
+            <h2 className="camera-heading">You</h2>
+            <div className="video-wrap">
+              <video ref={videoRef} autoPlay playsInline muted aria-label="Your local camera preview" />
+              <canvas ref={canvasRef} aria-hidden="true" />
+              <div className="score"><small>Pose score</small><strong>{score === null ? '—' : score}<span style={{ fontSize: '.9rem', color: '#9fb4c8' }}> / 100</span></strong></div>
+              {timer.phase !== 'idle' && <div className="timer-overlay" role="timer" aria-live="polite">{timer.phase === 'countdown' ? <><small>Get ready</small><strong>{timer.secondsLeft}</strong></> : <><small>Hold it!</small><strong>{timer.secondsLeft}s</strong><div className="timer-bar"><div key={holdSeconds} style={{ animationDuration: `${holdSeconds}s` }} /></div></>}</div>}
+              <div className={`detected-pose-banner ${autoMode && detectedKey ? 'detected' : ''} ${autoMode && !detectedKey ? 'searching' : ''}`} aria-live="polite"><small>{autoMode ? (detectedKey ? 'POSE DETECTED' : 'AUTO-DETECT') : (detectedKey === selectedPose ? 'TARGET MATCH' : 'TARGET POSE')}</small><strong>{autoMode ? (detectedKey ? POSES[detectedKey].name : 'Looking for a pose…') : POSES[selectedPose].name}</strong><span>{autoMode ? (detectedKey ? '✓ Stable detection' : 'Hold steady in frame') : detectedKey === selectedPose ? '✓ Matching target pose' : detectedKey ? `Detected: ${POSES[detectedKey].name}` : 'Pose not clear yet'}</span></div>
+              <div className={`tracking-pill ${landmarksVisible ? 'is-ready' : ''}`}>{!running ? 'Camera off' : !modelReady ? 'Preview only' : landmarksVisible ? 'Pose detected' : 'Move fully into frame'}</div>
+            </div>
+          </section>
         </div>
         <p className="status" role="status">{status}</p>
-
         <div className="controls">
           {!running ? <button onClick={startCamera}>Start camera</button> : <button className="secondary" onClick={stopCamera}>Stop camera</button>}
           <button className="secondary" onClick={() => { cancelTimer(); setLastResult(null); resetDetection(); clearScore(); if (running) stopCamera(); }}>Reset</button>
-          {timed && mode !== 'online' && (timer.phase === 'idle'
-            ? <button onClick={startPoseTimer} disabled={!running}>Start pose timer</button>
-            : <button className="secondary" onClick={() => cancelTimer('Timer cancelled.')}>Cancel timer</button>)}
-          {timed && <label className="hold-pick">Hold <select value={holdSeconds} disabled={timer.phase !== 'idle' || (mode === 'online' && myReady)} onChange={e => setHoldSeconds(Number(e.target.value))}>{HOLD_CHOICES.map(n => <option key={n} value={n}>{n}s</option>)}</select></label>}
+          {timed && (timer.phase === 'idle' ? <button onClick={startPoseTimer} disabled={!running}>Start pose timer</button> : <button className="secondary" onClick={() => cancelTimer('Timer cancelled.')}>Cancel timer</button>)}
+          {timed && <label className="hold-pick">Hold <select value={holdSeconds} disabled={timer.phase !== 'idle'} onChange={e => setHoldSeconds(Number(e.target.value))}>{HOLD_CHOICES.map(n => <option key={n} value={n}>{n}s</option>)}</select></label>}
           {mode === 'freestyle' && <button onClick={logFreestylePose} disabled={!running}>Log this pose</button>}
           {!modelReady && <button className="secondary" onClick={loadModel} disabled={modelLoading}>{modelLoading ? 'Loading model…' : 'Retry pose model'}</button>}
         </div>
-      </div>}
-
+      </div>)}
       {(activeSection === 'progress' || activeSection === 'studio') && <div className="panel log-panel">
         {activeSection === 'progress' && <><div className="section-heading"><div><span className="eyebrow">YOUR TRAINING HISTORY</span><h2>Progress overview</h2></div></div><div className="stats-grid progress-stats"><article className="stat-card"><span>Valid sessions</span><strong>{validLog.length}</strong><small>Sessions with enough tracking</small></article><article className="stat-card"><span>Average score</span><strong>{averageScore === null ? '—' : averageScore}</strong><small>Across all valid sessions</small></article><article className="stat-card"><span>Personal best</span><strong>{bestScore === null ? '—' : bestScore}</strong><small>Best recorded attempt</small></article></div></>}
         <div className="log-head">
@@ -658,7 +725,7 @@ export default function PoseBattleCam() {
             </div>
             <div className="log-meta">{MODE_LABELS[entry.mode] || entry.mode}{entry.holdSeconds ? ` · ${entry.holdSeconds}s hold` : ''} · {new Date(entry.time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}{entry.steadiness !== null ? ` · steadiness ${entry.steadiness}` : ''}</div>
             {entry.breakdown && <div className="log-chips">
-              <span>Physique proxy {entry.breakdown.physique ?? entry.breakdown.presentation}</span><span>Execution {entry.breakdown.execution}</span><span>Symmetry {entry.breakdown.symmetry}</span><span>Posture {entry.breakdown.posture}</span><span>Confidence {entry.confidence ?? '—'}%</span>
+              <span>Physique proxy {entry.breakdown.physique ?? entry.breakdown.presentation}</span><span>Execution {entry.breakdown.execution}</span><span>Symmetry {entry.breakdown.symmetry}</span><span>Posture {entry.breakdown.posture}</span><span>Confidence {entry.confidence ?? '—'}%</span>{entry.poseMatch != null && <span>Pose match {entry.poseMatch}%</span>}
             </div>}
             <ul className="log-tips">{entry.tips.map(tip => <li key={tip}>{tip}</li>)}</ul>
           </li>)}

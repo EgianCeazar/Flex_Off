@@ -59,3 +59,13 @@ FlexOff/
 │   └── src/index.css
 └── server/server.js
 ```
+
+## Pose-analysis upgrade
+
+The current build uses MediaPipe Pose Landmarker Full instead of the Lite model. Pose scoring now uses pose-specific geometry, including stronger separation between front lat spread and most muscular. Manual/guided/battle/online modes judge against the selected target pose; freestyle auto-detection requires both high confidence and a margin over the second-best candidate, otherwise it reports an unclear pose.
+
+The score remains a practice proxy: 35% physique presentation proxy, 30% pose execution, 20% symmetry, 15% posture/control. A separate pose-match value is used to penalize performing the wrong selected pose.
+
+## Online WebRTC
+
+Online video remains direct peer-to-peer WebRTC with a public STUN server and no TURN relay. This keeps the prototype inexpensive, but some restrictive networks may fail to connect without TURN. The Render signaling server only handles Socket.IO signaling and score relay; it does not carry the video stream.

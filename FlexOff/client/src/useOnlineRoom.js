@@ -1,24 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 
-// STUN finds your public address, but when two players are on different networks (mobile data,
-// school/office wifi, strict NAT) the direct connection often fails. A TURN server relays the
-// video in that case. Set these in Netlify -> Site settings -> Environment variables:
-//   VITE_TURN_URLS        comma-separated, e.g. turn:global.relay.metered.ca:80,turn:global.relay.metered.ca:443,turns:global.relay.metered.ca:443?transport=tcp
-//   VITE_TURN_USERNAME
-//   VITE_TURN_CREDENTIAL
-const iceServers = [{ urls: 'stun:stun.l.google.com:19302' }];
-const turnUrls = (import.meta.env.VITE_TURN_URLS || '').split(',').map((u) => u.trim()).filter(Boolean);
-if (turnUrls.length) {
-  iceServers.push({
-    urls: turnUrls,
-    username: import.meta.env.VITE_TURN_USERNAME,
-    credential: import.meta.env.VITE_TURN_CREDENTIAL,
-  });
-} else {
-  console.warn('[FlexOff] No TURN server configured (VITE_TURN_URLS). Video may fail across different networks.');
-}
-const RTC_CONFIG = { iceServers };
+// STUN only. Strict networks (some schools / mobile data) may need a TURN server too.
+const RTC_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
 /**
  * Private 1v1 room: Socket.IO for signaling + score relay, WebRTC for opponent video.
@@ -80,12 +64,7 @@ export default function useOnlineRoom({ serverUrl, handlers }) {
       if (!remoteStreamRef.current.getTracks().includes(event.track)) remoteStreamRef.current.addTrack(event.track);
       setRemoteStream(remoteStreamRef.current);
     };
-    pc.onicecandidate = (event) => {
-      if (event.candidate) {
-        console.log('[FlexOff] local ICE candidate:', event.candidate.type || event.candidate.candidate.split(' ')[7]);
-        sendSignal({ candidate: event.candidate });
-      }
-    };
+    pc.onicecandidate = (event) => { if (event.candidate) sendSignal({ candidate: event.candidate }); };
     pc.onnegotiationneeded = async () => {
       try {
         makingOfferRef.current = true;
@@ -98,13 +77,10 @@ export default function useOnlineRoom({ serverUrl, handlers }) {
       }
     };
     pc.onconnectionstatechange = () => {
-      console.log('[FlexOff] connectionState:', pc.connectionState);
       if (pc.connectionState === 'connected') setVideoState('connected');
       else if (pc.connectionState === 'failed') { setVideoState('failed'); pc.restartIce(); }
       else if (pc.connectionState === 'connecting') setVideoState('connecting');
     };
-    pc.oniceconnectionstatechange = () => console.log('[FlexOff] iceConnectionState:', pc.iceConnectionState);
-    pc.onicecandidateerror = (e) => console.warn('[FlexOff] ICE candidate error:', e.errorCode, e.errorText, e.url);
     pcRef.current = pc;
     setVideoState('connecting');
     return pc;

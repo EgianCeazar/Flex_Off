@@ -4,12 +4,21 @@ const cors = require("cors");
 const { Server } = require("socket.io");
 
 const app = express();
-app.use(cors({ origin: process.env.CLIENT_ORIGIN || "http://localhost:5173" }));
+const allowedOrigins = new Set([
+  "http://localhost:5173",
+  "https://flexoff.netlify.app",
+  ...(process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(",").map(value => value.trim()).filter(Boolean) : []),
+]);
+const corsOptions = { origin: (origin, callback) => {
+  if (!origin || allowedOrigins.has(origin)) return callback(null, true);
+  return callback(new Error("Origin not allowed by FlexOff signaling server."));
+} };
+app.use(cors(corsOptions));
 app.get("/health", (_req, res) => res.json({ ok: true, service: "flexoff-signaling" }));
 
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: { origin: process.env.CLIENT_ORIGIN || "http://localhost:5173", methods: ["GET", "POST"] }
+  cors: { ...corsOptions, methods: ["GET", "POST"] }
 });
 
 const POSE_KEYS = new Set(["front", "frontLat", "side", "sideTriceps", "back", "rearLat", "absThigh", "most"]);
