@@ -39,6 +39,10 @@ jobs:
         working-directory: FlexOff/client
         run: npm ci
 
+      - name: Run scoring tests
+        working-directory: FlexOff/client
+        run: npm test
+
       - name: Build FlexOff
         working-directory: FlexOff/client
         env:

@@ -14,11 +14,11 @@ For frontend-only development, run `npm install` in `client`, then `npm run dev`
 
 - **Home:** quick actions and session statistics.
 - **Judge:** free pose analysis with manual pose selection or rule-based auto-detection.
-- **Coach:** an ordered eight-pose routine or freestyle practice. Timed holds can be 5, 10, or 15 seconds.
+- **Coach:** an ordered seven-pose routine or freestyle practice. Timed holds can be 5, 10, or 15 seconds.
 - **Battle:** local pass-and-play scoring or private online rooms.
 - **Progress:** locally saved pose history, score breakdowns, confidence, and tips.
 
-Supported pose profiles include front double biceps, side chest, back double biceps, front lat spread, rear lat spread, side triceps, abdominal and thigh, and most muscular. Auto-detection remains a rule-based estimate; manual pose selection is available when the classifier is unsure.
+Supported pose profiles include front double biceps, side chest, back double biceps, rear lat spread, side triceps, abdominal and thigh, and most muscular. Auto-detection remains a rule-based estimate; manual pose selection is available when the classifier is unsure.
 
 ## Scoring rubric
 
@@ -62,7 +62,7 @@ FlexOff/
 
 ## Pose-analysis upgrade
 
-The current build uses MediaPipe Pose Landmarker Full instead of the Lite model. Pose scoring now uses pose-specific geometry, including stronger separation between front lat spread and most muscular. Manual/guided/battle/online modes judge against the selected target pose; freestyle auto-detection requires both high confidence and a margin over the second-best candidate, otherwise it reports an unclear pose.
+The current build uses MediaPipe Pose Landmarker Full instead of the Lite model. Pose scoring now uses pose-specific geometry, with distinct profiles for each of the seven supported poses. Manual/guided/battle/online modes judge against the selected target pose; freestyle auto-detection requires both high confidence and a margin over the second-best candidate, otherwise it reports an unclear pose.
 
 The score remains a practice proxy: 35% physique presentation proxy, 30% pose execution, 20% symmetry, 15% posture/control. A separate pose-match value is used to penalize performing the wrong selected pose.
 
