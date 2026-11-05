@@ -763,6 +763,21 @@ export function classifyPose(p, w) {
             f.elbowSpread * 70
           ),
         },
+
+        {
+          // Fists sit roughly above the elbows, outside the
+          // shoulders. Hands close together (behind the head)
+          // point to abs-and-thigh instead.
+          weight: 0.14,
+          score: rangeScore(
+            Math.abs(
+              lW.x - rW.x
+            ) / shoulderWidth3d,
+            1.0,
+            3.0,
+            0.35
+          ),
+        },
       ]);
 
     candidates.push(
@@ -905,13 +920,17 @@ export function classifyPose(p, w) {
           },
 
           {
+            // Hands behind the head sit close together, while
+            // double-biceps fists sit outside the shoulders.
+            // Compare against shoulder width so this works at
+            // any body size or camera distance.
             weight: 0.14,
             score: rangeScore(
               Math.abs(
                 lW.x - rW.x
-              ),
+              ) / shoulderWidth3d,
               0,
-              0.95,
+              0.9,
               0.35
             ),
           },
